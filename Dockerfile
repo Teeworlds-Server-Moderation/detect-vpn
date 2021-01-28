@@ -17,11 +17,6 @@ FROM alpine:latest as minimal
 ENV BROKER_ADDRESS=tcp://mosquitto:1883
 ENV CLIENT_ID=detect-vpn
 
-# unencrypted traffic
-EXPOSE 1883
-# encrypted traffic
-EXPOSE 8883
-
 
 WORKDIR /app
 COPY --from=build /build/vpn-detection .
