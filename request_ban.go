@@ -31,11 +31,20 @@ func requestBan(publisher *mqtt.Publisher, cfg *Config, player dto.Player, reaso
 		"{REASON}",
 		reason,
 	)
+
+	broadcastFeasible := true
+	if strings.Contains(cfg.DefaultBanCommand, "{ID}") {
+		broadcastFeasible = false
+	}
+
 	banCommand := replacer.Replace(cfg.DefaultBanCommand)
 	event.Command = banCommand
 
-	if cfg.BroadcastBans {
+	if cfg.BroadcastBans && broadcastFeasible {
 		// ban on all servers
+		// if broadcasting makes sense
+		// if the ban command contains an ID,
+		// it makes no sense to broadcast it
 		publisher.Publish(mqtt.Message{
 			Topic:   mqtt.TopicBroadcast,
 			Payload: event.Marshal(),

@@ -12,6 +12,7 @@ import (
 	"github.com/Teeworlds-Server-Moderation/common/env"
 	"github.com/Teeworlds-Server-Moderation/common/events"
 	"github.com/Teeworlds-Server-Moderation/common/mqtt"
+	"github.com/go-redis/redis"
 	"github.com/jxsl13/goripr"
 )
 
@@ -29,14 +30,22 @@ func init() {
 		log.Fatalln(err)
 	}
 
+	// goripr wrapper, used all the time
 	rdb, err = goripr.NewClient(goripr.Options{
 		Addr:     cfg.RedisAddress,
-		Password: cfg.RedisPassword, // no password set
-		DB:       cfg.RedisDatabase, // use default DB
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDatabase,
 	})
 	if err != nil {
 		log.Fatalln("Could not establish redis database connection:", err)
 	}
+	// Redis client, used for initialization purposed only.
+	initRdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddress,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDatabase,
+	})
+	defer initRdb.Close()
 
 	subscriber, err = mqtt.NewSubscriber(cfg.BrokerAddress, clientID, events.TypePlayerJoined)
 	if err != nil {
@@ -51,10 +60,12 @@ func init() {
 	if err = initFolderStructure(cfg); err != nil {
 		log.Fatalln(err)
 	}
+	log.Println("Initialized folder structure")
 
-	if err = updateRedisDatabase(rdb, cfg); err != nil {
+	if err = updateRedisDatabase(initRdb, rdb, cfg); err != nil {
 		log.Fatalln(err)
 	}
+	log.Println("Initialized redis database content")
 }
 
 func main() {
