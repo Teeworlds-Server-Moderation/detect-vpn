@@ -53,19 +53,21 @@ func updateRedisDatabase(initRdb *redis.Client, rdb *goripr.Client, cfg *Config)
 		}
 		// we have already seen this file before
 		databaseLastModified, err := time.Parse(time.RFC3339, dbLastModifiedStr)
+		if err != nil {
+			return err
+		}
+
 		fileLastModified := info.ModTime()
 
 		// file has not been modified after the last time we saw it
-		// these timestamps are rather inaccurate, thus we add one second to the
-		// value in order not to have some precision problems
-		if !fileLastModified.Round(time.Second).After(databaseLastModified.Round(time.Second)) {
+		if !fileLastModified.After(databaseLastModified) {
 			log.Printf("File has not been modified, skipping: %s\n", path)
 			return nil
 		}
 
 		// file has been modified so we need to update the database
 		fileLastModifiedStr := fileLastModified.Format(time.RFC3339)
-		_, err = initRdb.HSet(lastModifiedKey, fileLastModifiedStr, path).Result()
+		_, err = initRdb.HSet(lastModifiedKey, path, fileLastModifiedStr).Result()
 		if err != nil {
 			return fmt.Errorf("failed to update last modified state of file in database: %s", path)
 		}
@@ -100,11 +102,11 @@ func parseLine(line string) (ipRange, reason string, err error) {
 }
 
 func addIPsToDatabase(rdb *goripr.Client, filename string, cfg *Config) error {
-
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	cnt := 0
 	scanner := bufio.NewScanner(file)
@@ -131,11 +133,11 @@ func addIPsToDatabase(rdb *goripr.Client, filename string, cfg *Config) error {
 }
 
 func removeIPsFromDatabase(rdb *goripr.Client, filename string, cfg *Config) error {
-
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	cnt := 0
