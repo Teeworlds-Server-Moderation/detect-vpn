@@ -9,40 +9,62 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Teeworlds-Server-Moderation/common/env"
+	"github.com/Teeworlds-Server-Moderation/common/events"
 	"github.com/Teeworlds-Server-Moderation/common/mqtt"
+	"github.com/jxsl13/goripr"
 )
 
 var (
-	topic         = "topic1"
-	serverAddress = "tcp://localhost:1883"
-	clientID      = "detect-vpn"
+	clientID   = "detect-vpn"
+	cfg        = &Config{}
+	rdb        *goripr.Client
+	subscriber *mqtt.Subscriber
+	publisher  *mqtt.Publisher
 )
 
 func init() {
-	if brokerAddress := os.Getenv("BROKER_ADDRESS"); brokerAddress != "" {
-		serverAddress = brokerAddress
-	}
-	if id := os.Getenv("BROKER_CLIENT_ID"); id != "" {
-		clientID = id
+	err := env.Parse(cfg)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	if t := os.Getenv("BROKER_TOPIC"); t != "" {
-		topic = t
+	rdb, err = goripr.NewClient(goripr.Options{
+		Addr:     cfg.RedisAddress,
+		Password: cfg.RedisPassword, // no password set
+		DB:       cfg.RedisDatabase, // use default DB
+	})
+	if err != nil {
+		log.Fatalln("Could not establish redis database connection:", err)
 	}
 
-	log.Println("Initialized with address: ", serverAddress, " clientID: ", clientID)
-}
-
-func main() {
-
-	subscriber, err := mqtt.NewSubscriber(serverAddress, clientID, topic)
+	subscriber, err = mqtt.NewSubscriber(cfg.BrokerAddress, clientID, events.TypePlayerJoined)
 	if err != nil {
 		log.Fatalln("Could not establish subscriber connection: ", err)
 	}
+
+	publisher, err = mqtt.NewPublisher(cfg.BrokerAddress, clientID, "")
+	if err != nil {
+		log.Fatalln("Could not establish publisher connection: ", err)
+	}
+
+	if err = initFolderStructure(cfg); err != nil {
+		log.Fatalln(err)
+	}
+
+	if err = updateRedisDatabase(rdb, cfg); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func main() {
 	defer subscriber.Close()
+	defer rdb.Close()
 	go func() {
 		for msg := range subscriber.Next() {
-			log.Println("Received message: ", msg)
+			if err := processMessage(msg, rdb, publisher, cfg); err != nil {
+				log.Printf("Error processing message: %s\n", err)
+			}
 		}
 	}()
 
@@ -51,6 +73,6 @@ func main() {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	fmt.Println("Connection is up, press Ctrl-C to shutdown")
 	<-sig
-	fmt.Println("signal caught - exiting")
-	fmt.Println("shutdown complete")
+	fmt.Println("Signal caught - exiting")
+	fmt.Println("Shutdown complete")
 }
