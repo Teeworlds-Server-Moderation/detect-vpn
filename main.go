@@ -69,6 +69,7 @@ func init() {
 }
 
 func main() {
+	defer publisher.Close()
 	defer subscriber.Close()
 	defer rdb.Close()
 	go func() {

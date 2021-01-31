@@ -92,7 +92,7 @@ func (c *Config) Options() (options configo.Options) {
 		},
 		{
 			Key:           "VPN_BAN_DURATION",
-			Description:   "The duration a VPN IP is banned by default.",
+			Description:   "The duration a VPN IP is banned by default.(e.g. 10s, 5m, 1h, 1h5m10s, 24h)",
 			DefaultValue:  "24h",
 			ParseFunction: configo.DefaultParserDuration(&c.VPNBanDuration),
 		},
