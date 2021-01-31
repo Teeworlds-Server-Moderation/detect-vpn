@@ -62,6 +62,8 @@ func init() {
 	}
 	log.Println("Initialized folder structure")
 
+	// First one is used to update modified states of the file structure
+	// second one is used to add IP ranges to the database
 	if err = updateRedisDatabase(initRdb, rdb, cfg); err != nil {
 		log.Fatalln(err)
 	}
