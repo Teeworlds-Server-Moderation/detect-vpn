@@ -12,6 +12,8 @@ import (
 
 func processMessage(msg mqtt.Message, rdb *goripr.Client, publisher *mqtt.Publisher, cfg *Config) error {
 
+	log.Printf("Processing Message: %s\n", msg.Payload)
+
 	switch msg.Topic {
 	case events.TypePlayerJoined:
 		event := events.NewPlayerJoinedEvent()
@@ -19,6 +21,7 @@ func processMessage(msg mqtt.Message, rdb *goripr.Client, publisher *mqtt.Publis
 		if err != nil {
 			return fmt.Errorf("unable to unmarshal PlayerJoinedEvent: %s", err)
 		}
+		log.Printf("Trying to find: '%s'\n", event.IP)
 		reason, err := rdb.Find(event.IP)
 		if errors.Is(goripr.ErrIPNotFound, err) {
 			log.Printf("[NO VPN]: %s\n", event.IP)
