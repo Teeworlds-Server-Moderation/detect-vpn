@@ -9,7 +9,7 @@ COPY go.* ./
 ENV CGO_ENABLED=0
 ENV GOOS=linux 
 
-RUN go get -d && go build -a -ldflags '-w -extldflags "-static"' -o vpn-detection .
+RUN go get -d && go build -a -ldflags '-extldflags "-static"' -o vpn-detection .
 
 
 FROM alpine:latest as minimal
