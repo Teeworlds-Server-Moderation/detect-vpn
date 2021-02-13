@@ -9,19 +9,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Teeworlds-Server-Moderation/common/amqp"
 	"github.com/Teeworlds-Server-Moderation/common/env"
 	"github.com/Teeworlds-Server-Moderation/common/events"
-	"github.com/Teeworlds-Server-Moderation/common/mqtt"
 	"github.com/go-redis/redis"
 	"github.com/jxsl13/goripr"
 )
 
 var (
-	clientID   = "detect-vpn"
 	cfg        = &Config{}
 	rdb        *goripr.Client
-	subscriber *mqtt.Subscriber
-	publisher  *mqtt.Publisher
+	subscriber *amqp.Subscriber
+	publisher  *amqp.Publisher
 )
 
 func init() {
@@ -47,12 +46,12 @@ func init() {
 	})
 	defer initRdb.Close()
 
-	subscriber, err = mqtt.NewSubscriber(cfg.BrokerAddress, clientID, events.TypePlayerJoined)
+	subscriber, err = amqp.NewSubscriber(cfg.BrokerAddress, cfg.BrokerUser, cfg.BrokerPassword)
 	if err != nil {
 		log.Fatalln("Could not establish subscriber connection: ", err)
 	}
 
-	publisher, err = mqtt.NewPublisher(cfg.BrokerAddress, clientID, "")
+	publisher, err = amqp.NewPublisher(cfg.BrokerAddress, cfg.BrokerUser, cfg.BrokerPassword)
 	if err != nil {
 		log.Fatalln("Could not establish publisher connection: ", err)
 	}
@@ -74,9 +73,14 @@ func main() {
 	defer publisher.Close()
 	defer subscriber.Close()
 	defer rdb.Close()
+
 	go func() {
-		for msg := range subscriber.Next() {
-			if err := processMessage(msg, rdb, publisher, cfg); err != nil {
+		next, err := subscriber.Consume(events.TypePlayerJoined)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		for msg := range next {
+			if err := processMessage(string(msg.Body), rdb, publisher, cfg); err != nil {
 				log.Printf("Error processing message: %s\n", err)
 			}
 		}

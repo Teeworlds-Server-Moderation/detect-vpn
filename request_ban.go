@@ -5,13 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Teeworlds-Server-Moderation/common/amqp"
 	"github.com/Teeworlds-Server-Moderation/common/dto"
 	"github.com/Teeworlds-Server-Moderation/common/events"
-	"github.com/Teeworlds-Server-Moderation/common/mqtt"
+	"github.com/Teeworlds-Server-Moderation/common/topics"
 )
 
 // serverTopic may be either the server's ip:port address or the broadcast topic
-func requestBan(publisher *mqtt.Publisher, cfg *Config, player dto.Player, reason, source string) error {
+func requestBan(publisher *amqp.Publisher, cfg *Config, player dto.Player, reason, source string) error {
 	const ID = "detect-vpn"
 	event := events.NewRequestCommandExecEvent()
 	event.Timestamp = time.Now().Format("2006-01-02 15:04:05")
@@ -45,16 +46,10 @@ func requestBan(publisher *mqtt.Publisher, cfg *Config, player dto.Player, reaso
 		// if broadcasting makes sense
 		// if the ban command contains an ID,
 		// it makes no sense to broadcast it
-		publisher.Publish(mqtt.Message{
-			Topic:   mqtt.TopicBroadcast,
-			Payload: event.Marshal(),
-		})
+		publisher.Publish(topics.Broadcast, event.Marshal())
 	} else {
 		// only ban on the server where the player joined
-		publisher.Publish(mqtt.Message{
-			Topic:   source,
-			Payload: event.Marshal(),
-		})
+		publisher.Publish(source, event.Marshal())
 	}
 	return nil
 }

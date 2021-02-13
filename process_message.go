@@ -5,19 +5,26 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Teeworlds-Server-Moderation/common/amqp"
 	"github.com/Teeworlds-Server-Moderation/common/events"
-	"github.com/Teeworlds-Server-Moderation/common/mqtt"
 	"github.com/jxsl13/goripr"
 )
 
-func processMessage(msg mqtt.Message, rdb *goripr.Client, publisher *mqtt.Publisher, cfg *Config) error {
+func processMessage(msg string, rdb *goripr.Client, publisher *amqp.Publisher, cfg *Config) error {
 
-	log.Printf("Processing Message: %s\n", msg.Payload)
+	log.Printf("Processing Message: %s\n", msg)
 
-	switch msg.Topic {
+	// the baseevent contains all necessary type information
+	baseEvent := events.BaseEvent{}
+	err := baseEvent.Unmarshal(msg)
+	if err != nil {
+		return err
+	}
+
+	switch baseEvent.Type {
 	case events.TypePlayerJoined:
 		event := events.NewPlayerJoinedEvent()
-		err := event.Unmarshal(msg.Payload)
+		err := event.Unmarshal(msg)
 		if err != nil {
 			return fmt.Errorf("unable to unmarshal PlayerJoinedEvent: %s", err)
 		}
@@ -34,7 +41,7 @@ func processMessage(msg mqtt.Message, rdb *goripr.Client, publisher *mqtt.Publis
 		}
 		log.Printf("[IS VPN]: %s\n", event.IP)
 	default:
-		return fmt.Errorf("processMessage: unexpected topic: %s", msg.Topic)
+		return fmt.Errorf("processMessage: unexpected topic: %s", baseEvent.Type)
 	}
 	return nil
 }

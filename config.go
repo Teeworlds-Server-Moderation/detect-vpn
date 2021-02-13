@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	brokerAddressRegex = `^tcp://[a-z0-9-\.:]+:([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$`
+	brokerAddressRegex = `^[a-z0-9-\.:]+:([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$`
 	redisAddressRegex  = `^[a-z0-9-\.:]+:([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$`
 
 	folderRegex  = `^[a-zA-Z0-9-]+$`
@@ -17,6 +17,8 @@ const (
 // Config is the configuration for this microservice
 type Config struct {
 	BrokerAddress       string
+	BrokerUser          string
+	BrokerPassword      string
 	RedisAddress        string
 	RedisPassword       string
 	RedisDatabase       int
@@ -44,9 +46,21 @@ func (c *Config) Options() (options configo.Options) {
 	optionsList := configo.Options{
 		{
 			Key:           "BROKER_ADDRESS",
-			Description:   "The address of the Mosquitto broker. In the container environemt it's tcp://mosquitto:1883",
-			DefaultValue:  "tcp://localhost:1883",
-			ParseFunction: configo.DefaultParserRegex(&c.BrokerAddress, brokerAddressRegex, "BROKER_ADDRESS must have the format: tcp://<hostname/ip>:<port>"),
+			Description:   "The address of the message broker. In the container environemt it's rabbitmq:5672",
+			DefaultValue:  "localhost:5672",
+			ParseFunction: configo.DefaultParserRegex(&c.BrokerAddress, brokerAddressRegex, "BROKER_ADDRESS must have the format <hostname/ip>:<port>"),
+		},
+		{
+			Key:           "BROKER_USER",
+			Description:   "Username of the broker user",
+			DefaultValue:  "tw-admin",
+			ParseFunction: configo.DefaultParserString(&c.BrokerUser),
+		},
+		{
+			Key:           "BROKER_PASSWORD",
+			Mandatory:     true,
+			Description:   "Password of the specified username",
+			ParseFunction: configo.DefaultParserString(&c.BrokerPassword),
 		},
 		{
 			Key:           "REDIS_ADDRESS",
