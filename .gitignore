@@ -2,3 +2,4 @@
 detect-vpn
 data/
 .env
+**__debug_bin
