@@ -12,8 +12,13 @@ import (
 	"github.com/Teeworlds-Server-Moderation/common/amqp"
 	"github.com/Teeworlds-Server-Moderation/common/env"
 	"github.com/Teeworlds-Server-Moderation/common/events"
+	"github.com/Teeworlds-Server-Moderation/common/topics"
 	"github.com/go-redis/redis"
 	"github.com/jxsl13/goripr"
+)
+
+const (
+	applicationID = "detect-vpn"
 )
 
 var (
@@ -22,6 +27,42 @@ var (
 	subscriber *amqp.Subscriber
 	publisher  *amqp.Publisher
 )
+
+func brokerCredentials(c *Config) (address, username, password string) {
+	return c.BrokerAddress, c.BrokerUsername, c.BrokerPassword
+}
+
+// ExchangeCreator can be publisher or subscriber
+type ExchangeCreator interface {
+	CreateExchange(string) error
+}
+
+// QueueCreateBinder creates queues and binds them to exchanges
+type QueueCreateBinder interface {
+	CreateQueue(queue string) error
+	BindQueue(queue, exchange string) error
+}
+
+func createExchanges(ec ExchangeCreator, exchanges ...string) {
+	for _, exchange := range exchanges {
+		if err := ec.CreateExchange(exchange); err != nil {
+			log.Fatalf("Failed to create exchange '%s': %v\n", exchange, err)
+		}
+	}
+}
+
+func createQueueAndBindToExchanges(qcb QueueCreateBinder, queue string, exchanges ...string) {
+	if err := qcb.CreateQueue(queue); err != nil {
+		log.Fatalf("Failed to create queue '%s'\n", queue)
+	}
+
+	for _, exchange := range exchanges {
+		if err := qcb.BindQueue(queue, exchange); err != nil {
+			log.Fatalf("Failed to bind queue '%s' to exchange '%s'\n", queue, exchange)
+		}
+
+	}
+}
 
 func init() {
 	err := env.Parse(cfg)
@@ -46,15 +87,31 @@ func init() {
 	})
 	defer initRdb.Close()
 
-	subscriber, err = amqp.NewSubscriber(cfg.BrokerAddress, cfg.BrokerUser, cfg.BrokerPassword)
+	subscriber, err = amqp.NewSubscriber(brokerCredentials(cfg))
 	if err != nil {
 		log.Fatalln("Could not establish subscriber connection: ", err)
 	}
 
-	publisher, err = amqp.NewPublisher(cfg.BrokerAddress, cfg.BrokerUser, cfg.BrokerPassword)
+	publisher, err = amqp.NewPublisher(brokerCredentials(cfg))
 	if err != nil {
 		log.Fatalln("Could not establish publisher connection: ", err)
 	}
+
+	createExchanges(
+		publisher,
+		topics.Broadcast,
+	)
+
+	createExchanges(
+		subscriber,
+		events.TypePlayerJoined,
+	)
+
+	createQueueAndBindToExchanges(
+		subscriber,
+		applicationID,
+		events.TypePlayerJoined,
+	)
 
 	if err = initFolderStructure(cfg); err != nil {
 		log.Fatalln(err)
@@ -67,6 +124,7 @@ func init() {
 		log.Fatalln(err)
 	}
 	log.Println("Initialized redis database content")
+
 }
 
 func main() {
@@ -75,7 +133,7 @@ func main() {
 	defer rdb.Close()
 
 	go func() {
-		next, err := subscriber.Consume(events.TypePlayerJoined)
+		next, err := subscriber.Consume(applicationID)
 		if err != nil {
 			log.Fatalln(err)
 		}

@@ -17,7 +17,7 @@ const (
 // Config is the configuration for this microservice
 type Config struct {
 	BrokerAddress       string
-	BrokerUser          string
+	BrokerUsername      string
 	BrokerPassword      string
 	RedisAddress        string
 	RedisPassword       string
@@ -54,7 +54,7 @@ func (c *Config) Options() (options configo.Options) {
 			Key:           "BROKER_USER",
 			Description:   "Username of the broker user",
 			DefaultValue:  "tw-admin",
-			ParseFunction: configo.DefaultParserString(&c.BrokerUser),
+			ParseFunction: configo.DefaultParserString(&c.BrokerUsername),
 		},
 		{
 			Key:           "BROKER_PASSWORD",

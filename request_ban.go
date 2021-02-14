@@ -46,10 +46,11 @@ func requestBan(publisher *amqp.Publisher, cfg *Config, player dto.Player, reaso
 		// if broadcasting makes sense
 		// if the ban command contains an ID,
 		// it makes no sense to broadcast it
-		publisher.Publish(topics.Broadcast, event.Marshal())
+		publisher.Publish(topics.Broadcast, "", event.Marshal())
 	} else {
 		// only ban on the server where the player joined
-		publisher.Publish(source, event.Marshal())
+		// do not publish to exchange, but directly to the queue
+		publisher.Publish("", source, event.Marshal())
 	}
 	return nil
 }
