@@ -8,7 +8,7 @@ require (
 	github.com/Teeworlds-Server-Moderation/common v0.6.1
 	github.com/go-redis/redis v6.15.8+incompatible
 	github.com/google/go-cmp v0.5.4 // indirect
-	github.com/jxsl13/goripr v1.1.0
+	github.com/jxsl13/goripr v1.1.1
 	github.com/jxsl13/simple-configo v1.2.4
 	github.com/onsi/ginkgo v1.14.2 // indirect
 	github.com/onsi/gomega v1.10.4 // indirect
